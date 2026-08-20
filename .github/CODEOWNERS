@@ -1,0 +1,25 @@
+# CODEOWNERS — quilt-k3s
+#
+# Every PR must be reviewed by the listed owners for the changed paths.
+# Multiple owners in a section: any one of them may approve.
+
+# Default owners for everything in the repo.
+*       @SuperInstance/quilt-k3s-maintainers
+
+# Source code & scenarios — tighter review because they encode chaos logic.
+/src/   @SuperInstance/quilt-k3s-maintainers @SuperInstance/quilt-core-reviewers
+/scenarios/ @SuperInstance/quilt-k3s-maintainers @SuperInstance/quilt-agent-reviewers
+
+# CI workflows — separate review by the platform team.
+/.github/ @SuperInstance/quilt-k3s-maintainers @SuperInstance/platform-reviewers
+
+# K8s manifests — these are the things we actually deploy into the cluster
+# during the chaos run, so they get an extra reviewer.
+/manifests/ @SuperInstance/quilt-k3s-maintainers @SuperInstance/quilt-agent-reviewers
+
+# Docs — anyone can edit, just need a maintainer sign-off.
+/docs/  @SuperInstance/quilt-k3s-maintainers
+
+# Security-sensitive files.
+/SECURITY.md  @SuperInstance/quilt-k3s-maintainers @SuperInstance/security-reviewers
+/LICENSE      @SuperInstance/quilt-k3s-maintainers

@@ -1,0 +1,53 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Test artifacts
+coverage/
+.nyc_output/
+chaos-report.json
+chaos-junit.xml
+junit.xml
+*.lcov
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local env / secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+kubeconfig
+kubeconfig.yaml
+.kube/
+
+# k3d local state
+.k3d/
+
+# Logs
+*.log
+logs/
+
+# TypeScript cache
+.tscache/
+
+# OS temp
+tmp/
+temp/

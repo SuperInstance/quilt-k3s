@@ -1,0 +1,124 @@
+---
+# quilt-agent — runs as a DaemonSet (one pod per node) and acts as the
+# control-plane integration layer for the Quilt cell. The chaos CI deploys
+# this manifest into the k3d cluster and the scenarios assert on it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quilt
+  labels:
+    app.kubernetes.io/part-of: quilt
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quilt-agent-config
+  namespace: quilt
+  labels:
+    app.kubernetes.io/name: quilt-agent
+    app.kubernetes.io/part-of: quilt
+data:
+  agent.yaml: |
+    # Listen on the pod IP so the cell can reach us without DNS surprises.
+    listen: 0.0.0.0:8081
+    metrics:
+      enabled: true
+      path: /metrics
+      port: 9100
+    healthz:
+      enabled: true
+      port: 8081
+      path: /healthz
+    events:
+      enabled: true
+      path: /events
+    # Tag every emitted event so the chaos CI can grep for them.
+    labeling:
+      namespace: quilt
+      component: agent
+    # The agent must surface storage I/O errors as `quilt_storage_errors_total`.
+    storage:
+      emit_io_errors: true
+      backpressure:
+        enabled: true
+        max_queue_depth: 1024
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: quilt-agent
+  namespace: quilt
+  labels:
+    app.kubernetes.io/name: quilt-agent
+    app.kubernetes.io/part-of: quilt
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: quilt-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: quilt-agent
+        app.kubernetes.io/part-of: quilt
+    spec:
+      # The agent must be on every node (incl. control-plane) so the
+      # network-partition scenario can pick one to isolate.
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: quilt
+          image: ghcr.io/superinstance/quilt-agent:0.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config=/etc/quilt/agent.yaml
+          ports:
+            - name: health
+              containerPort: 8081
+            - name: metrics
+              containerPort: 9100
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 2
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/quilt
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: quilt-agent-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quilt-agent
+  namespace: quilt
+  labels:
+    app.kubernetes.io/name: quilt-agent
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: quilt-agent
+  ports:
+    - name: health
+      port: 8081
+      targetPort: health
+    - name: metrics
+      port: 9100
+      targetPort: metrics

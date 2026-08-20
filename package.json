@@ -1,0 +1,73 @@
+{
+  "name": "@quilt/k3s",
+  "version": "0.1.0",
+  "description": "K3s-based chaos testing framework for Quilt. Validates self-healing, retry loops, and state-sync. Self-healing verification in under 30s.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "quilt-k3s": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "scenarios",
+    "manifests",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "test:unit": "node --import tsx --test test/**/*.test.ts",
+    "test:chaos": "node --import tsx dist/cli.js test",
+    "lint": "eslint 'src/**/*.ts' 'scenarios/**/*.ts' 'test/**/*.ts'",
+    "format": "prettier --write 'src/**/*.ts' 'scenarios/**/*.ts' 'test/**/*.ts'",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run lint && npm test"
+  },
+  "keywords": [
+    "quilt",
+    "k3s",
+    "chaos-engineering",
+    "kubernetes",
+    "self-healing",
+    "resilience",
+    "k3d",
+    "testing"
+  ],
+  "homepage": "https://github.com/SuperInstance/quilt-k3s#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SuperInstance/quilt-k3s.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SuperInstance/quilt-k3s/issues"
+  },
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^0.21.0",
+    "commander": "^12.1.0",
+    "execa": "^8.0.1",
+    "yaml": "^2.5.0"
+  },
+  "peerDependencies": {
+    "@quilt/core": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@quilt/core": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.0",
+    "@typescript-eslint/parser": "^7.13.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

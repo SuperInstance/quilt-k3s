@@ -1,0 +1,141 @@
+name: Chaos CI
+
+# Runs the full quilt-k3s chaos gauntlet on every PR and push to main.
+# The 5 chaos scenarios (node, network, disk, api, etcd) are exercised against
+# a fresh 3-node k3d cluster with the Quilt agent + cell deployed into it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same PR.
+concurrency:
+  group: chaos-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  K3D_VERSION: v5.6.0
+  KUBECTL_VERSION: v1.30.2
+  K3S_IMAGE: rancher/k3s:v1.30.2-k3s1
+  CLUSTER_NAME: quilt-chaos
+  REPORT_PATH: chaos-report.json
+  JUNIT_PATH: chaos-junit.xml
+
+jobs:
+  chaos:
+    name: Run chaos gauntlet
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install k3d
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | TAG=${K3D_VERSION} bash
+          k3d version
+
+      - name: Install kubectl
+        run: |
+          curl -fsSL -o /usr/local/bin/kubectl \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Spin up k3d cluster
+        run: |
+          k3d cluster create ${CLUSTER_NAME} \
+            --image ${K3S_IMAGE} \
+            --agents 3 \
+            --wait \
+            --timeout 120s
+          k3d node list --cluster ${CLUSTER_NAME} -o json
+
+      - name: Deploy Quilt under test
+        run: |
+          kubectl apply -f manifests/quilt-agent.yaml
+          kubectl apply -f manifests/quilt-cell.yaml
+          kubectl -n quilt rollout status deployment/quilt-agent --timeout=120s
+          kubectl -n quilt rollout status statefulset/quilt-cell --timeout=120s
+
+      - name: Run chaos gauntlet
+        id: chaos
+        run: |
+          set +e
+          node dist/cli.js test \
+            --nodes 3 \
+            --cluster ${CLUSTER_NAME} \
+            --keep-cluster \
+            --continue-on-failure \
+            --output ${REPORT_PATH}
+          CHAOS_EXIT=$?
+          set -e
+          echo "chaos-exit-code=${CHAOS_EXIT}" >> $GITHUB_OUTPUT
+
+      - name: Convert report to JUnit XML
+        if: always()
+        run: |
+          node -e "
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+            const suites = report.results.map(r => {
+              const tc = r.assertions.map(a => \`    <testcase classname=\\\"\${r.name}\\\" name=\\\"\${a.name}\\\">\${a.passed ? '' : \`<failure message=\\\"\${a.message.replace(/\"/g,'&quot;')}\\\"/>\`}</testcase>\`).join('\n');
+              return \`  <testsuite name=\\\"\${r.name}\\\" tests=\\\"\${r.assertions.length}\\\" failures=\\\"\${r.assertions.filter(a=>!a.passed).length}\\\">\n\${tc}\n  </testsuite>\`;
+            }).join('\n');
+            const xml = \`<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\n<testsuites>\n\${suites}\n</testsuites>\n\`;
+            fs.writeFileSync(process.env.JUNIT_PATH, xml);
+          "
+
+      - name: Upload chaos report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-report
+          path: |
+            chaos-report.json
+            chaos-junit.xml
+
+      - name: Publish JUnit results
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: chaos-junit.xml
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: chaos-report
+          message: |
+            ## quilt-k3s chaos report
+            ${{ steps.chaos.outputs.chaos-exit-code == '0' && '✅ All scenarios passed.' || '❌ At least one scenario failed.' }}
+            See the `chaos-report` artifact for the full JSON / JUnit output.
+
+      - name: Tear down k3d cluster
+        if: always()
+        run: k3d cluster delete ${CLUSTER_NAME} || true
+
+      - name: Fail the job if any scenario failed
+        if: steps.chaos.outputs.chaos-exit-code != '0'
+        run: |
+          echo "Chaos gauntlet failed with exit code ${{ steps.chaos.outputs.chaos-exit-code }}"
+          exit 1

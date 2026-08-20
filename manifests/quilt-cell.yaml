@@ -1,0 +1,155 @@
+---
+# quilt-cell — a StatefulSet that owns the user data. The chaos CI deploys
+# this manifest and the scenarios assert on it (e.g. recovery time after a
+# network partition, storage-error counter after a disk fill).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quilt
+  labels:
+    app.kubernetes.io/part-of: quilt
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quilt-cell-config
+  namespace: quilt
+  labels:
+    app.kubernetes.io/name: quilt-cell
+    app.kubernetes.io/part-of: quilt
+data:
+  cell.yaml: |
+    listen: 0.0.0.0:8080
+    storage:
+      data_dir: /var/lib/quilt
+      # Refuse writes (return 507) once the FS is >95% full so the disk
+      # failure scenario can assert a clean `Degraded` state.
+      backpressure:
+        enabled: true
+        refuse_writes_above_percent: 95
+    metrics:
+      enabled: true
+      path: /metrics
+      port: 9100
+    healthz:
+      enabled: true
+      port: 8080
+      path: /healthz
+    # CLI subcommands used by the chaos scenarios:
+    #   quilt-cell checksum --json     → { checksum, count }
+    cli:
+      enabled: true
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quilt-cell
+  namespace: quilt
+  labels:
+    app.kubernetes.io/name: quilt-cell
+    app.kubernetes.io/part-of: quilt
+spec:
+  serviceName: quilt-cell
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: quilt-cell
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: quilt-cell
+        app.kubernetes.io/part-of: quilt
+    spec:
+      # Don't kill the cell during a node drain — that would corrupt the
+      # stateful volume. The chaos scenarios evict via the API on purpose.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: quilt
+          image: ghcr.io/superinstance/quilt-cell:0.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config=/etc/quilt/cell.yaml
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: metrics
+              containerPort: 9100
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/quilt
+            - name: config
+              mountPath: /etc/quilt
+              readOnly: true
+        # Sidecar used by the network-partition scenario to install iptables
+        # rules inside the pod's netns. Real production cells won't have this
+        # sidecar; it is added by the chaos test only.
+        - name: nettools
+          image: ghcr.io/superinstance/nettools:0.1.0
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "infinity"]
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+      volumes:
+        - name: config
+          configMap:
+            name: quilt-cell-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: quilt-cell
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # 1 Gi is plenty for the chaos run; the disk-failure scenario only
+        # needs to fill it to ENOSPC.
+        resources:
+          requests:
+            storage: 1Gi
+        # k3d's default local-path provisioner handles this dynamically.
+        storageClassName: local-path
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quilt-cell
+  namespace: quilt
+  labels:
+    app.kubernetes.io/name: quilt-cell
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: quilt-cell
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: metrics
+      port: 9100
+      targetPort: metrics
