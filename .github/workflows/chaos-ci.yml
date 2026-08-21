@@ -35,10 +35,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
 
@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload chaos report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: chaos-report
           path: |
@@ -115,13 +115,13 @@ jobs:
 
       - name: Publish JUnit results
         if: always()
-        uses: mikepenz/action-junit-report@v4
+        uses: mikepenz/action-junit-report@v6
         with:
           report_paths: chaos-junit.xml
 
       - name: Comment on PR
         if: github.event_name == 'pull_request' && always()
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: chaos-report
           message: |
