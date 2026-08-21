@@ -90,9 +90,10 @@ export class Cluster {
 
   /**
    * Provision a new k3d cluster with 1 server + `opts.nodes` agents.
+   * Does NOT wait for Ready — call {@link Cluster.waitForReady} explicitly.
+   * This separation lets tests verify failure paths.
    *
-   * @throws if the cluster already exists, if `k3d` is not installed, or if
-   *   nodes fail to reach Ready within the configured timeout.
+   * @throws if the cluster already exists or if `k3d` is not installed.
    */
   static async create(options: ClusterOptions = {}): Promise<Cluster> {
     const cluster = new Cluster({
@@ -236,7 +237,9 @@ export class Cluster {
     if (exitCode !== 0) {
       throw new Error(`k3d cluster create failed: ${stderr}`);
     }
-    await this.waitForReady();
+    // Note: we do NOT call waitForReady here. The caller decides whether to
+    //   block until the cluster is ready. This keeps `provision()` focused
+    //   on the k3d invocation and lets tests verify failure paths.
   }
 }
 

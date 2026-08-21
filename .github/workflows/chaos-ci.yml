@@ -41,7 +41,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: "20"
-          cache: "npm"
 
       - name: Install k3d
         run: |
@@ -56,7 +55,7 @@ jobs:
           kubectl version --client
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Build TypeScript
         run: npm run build
