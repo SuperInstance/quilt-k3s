@@ -5,7 +5,7 @@
  * `kubectl exec` for things that the API can't do (iptables, fallocate, etc).
  */
 
-import { CoreV1Api, KubernetesObject, V1Pod } from "@kubernetes/client-node";
+import { AppsV1Api, CoreV1Api, KubernetesObject, V1Pod } from "@kubernetes/client-node";
 
 /** Options for {@link K3sClient.cordon}. */
 export interface CordonOptions {
@@ -53,12 +53,13 @@ export interface K3sClientOptions {
  */
 export class K3sClient {
   private readonly core: CoreV1Api;
+  private readonly apps: AppsV1Api;
   private readonly kubeconfig: string | undefined;
-  private readonly exec: SubprocessExec;
+  private readonly rawExec: SubprocessExec;
 
   constructor(opts: K3sClientOptions = {}) {
     this.kubeconfig = opts.kubeconfig;
-    this.exec =
+    this.rawExec =
       opts.executor ??
       (async (command, args) => {
         const { execa } = await import("execa");
@@ -79,6 +80,7 @@ export class K3sClient {
     // need a valid kubeconfig.
     const k8s = this.loadClient();
     this.core = k8s;
+    this.apps = this.loadAppsClient();
   }
 
   // ───────────────────────── node ops ─────────────────────────
@@ -117,7 +119,7 @@ export class K3sClient {
   async listPodsOnNode(nodeName: string): Promise<readonly V1Pod[]> {
     const fieldSelector = encodeURIComponent(`spec.nodeName=${nodeName}`);
     const resp = await this.core.listPodForAllNamespaces(undefined, undefined, fieldSelector);
-    return resp.items;
+    return resp.body.items;
   }
 
   /** Delete a pod by namespace + name. */
@@ -164,10 +166,10 @@ export class K3sClient {
         await this.patchPod(namespace, name, patch);
         return;
       case "deployment":
-        await this.core.patchNamespacedDeployment(name, namespace, patch as unknown as KubernetesObject, undefined, undefined, undefined, undefined, undefined);
+        await this.apps.patchNamespacedDeployment(name, namespace, patch, undefined, undefined, undefined, undefined, undefined);
         return;
       case "statefulset":
-        await this.core.patchNamespacedStatefulSet(name, namespace, patch as unknown as KubernetesObject, undefined, undefined, undefined, undefined, undefined);
+        await this.apps.patchNamespacedStatefulSet(name, namespace, patch, undefined, undefined, undefined, undefined, undefined);
         return;
       case "configmap":
         await this.core.patchNamespacedConfigMap(name, namespace, patch as unknown as KubernetesObject, undefined, undefined, undefined, undefined, undefined);
@@ -200,7 +202,7 @@ export class K3sClient {
     args.push(...command);
 
     const start = Date.now();
-    const result = await this.exec("kubectl", args);
+    const result = await this.rawExec("kubectl", args);
     return {
       stdout: result.stdout,
       stderr: result.stderr,
@@ -217,7 +219,7 @@ export class K3sClient {
     const args = ["node", "exec", nodeName, "--"];
     args.push(...command);
     const start = Date.now();
-    const result = await this.exec("k3d", args);
+    const result = await this.rawExec("k3d", args);
     return {
       stdout: result.stdout,
       stderr: result.stderr,
@@ -240,6 +242,20 @@ export class K3sClient {
       kc.loadFromDefault();
     }
     return kc.makeApiClient(CApi);
+  }
+
+  private loadAppsClient(): AppsV1Api {
+    // Lazy import so the consumer pays nothing if they only use kubectl exec.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const k8s = require("@kubernetes/client-node") as typeof import("@kubernetes/client-node");
+    const { KubeConfig, AppsV1Api: AApi } = k8s;
+    const kc = new KubeConfig();
+    if (this.kubeconfig) {
+      kc.loadFromFile(this.kubeconfig);
+    } else {
+      kc.loadFromDefault();
+    }
+    return kc.makeApiClient(AApi);
   }
 }
 

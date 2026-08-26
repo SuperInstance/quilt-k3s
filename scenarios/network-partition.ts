@@ -16,7 +16,6 @@
 import type { Scenario, ScenarioContext } from "../src/scenario-runner.js";
 import {
   assertNoDataLoss,
-  assertPodsHealthy,
   assertRecoveryTime,
   type HealthSnapshot,
 } from "../src/assertions.js";
@@ -96,7 +95,6 @@ export function createNetworkPartitionScenario(opts: NetworkPartitionOptions = {
       ]);
 
       // 6) wait for queue to drain and pods to be healthy.
-      const recoveryStart = Date.now();
       const recovered = await waitUntilHealthy(ctx, budget - (Date.now() - partitionStart));
       ctx.report.assertions.push(recovered);
 

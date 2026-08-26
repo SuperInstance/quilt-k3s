@@ -70,6 +70,7 @@ export function createNodeFailureScenario(opts: NodeFailureOptions = {}): Scenar
             ready: p.ready,
             status: p.status,
             restarts: p.restarts,
+            node: p.node,
           })),
         };
         const ready = last.pods.filter(

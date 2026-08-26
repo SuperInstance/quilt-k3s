@@ -27,7 +27,8 @@ export interface ClusterNode {
   readonly name: string;
   readonly role: "server" | "agent";
   readonly state: "ready" | "notready" | "unknown";
-  readonly ipAddress?: string;
+  /** k3d omits the IP while a node is still starting. */
+  readonly ipAddress?: string | undefined;
 }
 
 /** Description of a single pod, as returned by `kubectl get pods -A`. */
@@ -37,7 +38,8 @@ export interface ClusterPod {
   readonly ready: string;
   readonly status: string;
   readonly restarts: number;
-  readonly node?: string;
+  /** Pending pods are not scheduled to a node yet. */
+  readonly node?: string | undefined;
   readonly age: string;
 }
 
@@ -48,6 +50,9 @@ export interface ClusterPod {
 export interface Executor {
   exec(command: string, args: readonly string[]): Promise<{ stdout: string; stderr: string; exitCode: number }>;
 }
+
+/** Default k3s image used when provisioning. */
+const DEFAULT_IMAGE = "rancher/k3s:v1.30.2-k3s1";
 
 /** Default executor that shells out via Node's `child_process`. */
 const defaultExecutor: Executor = {
@@ -98,13 +103,28 @@ export class Cluster {
   static async create(options: ClusterOptions = {}): Promise<Cluster> {
     const cluster = new Cluster({
       name: options.name ?? "quilt-chaos",
-      image: options.image ?? "rancher/k3s:v1.30.2-k3s1",
+      image: options.image ?? DEFAULT_IMAGE,
       nodes: options.nodes ?? 3,
       executor: options.executor ?? defaultExecutor,
       readyTimeoutMs: options.readyTimeoutMs ?? 60_000,
     });
     await cluster.provision();
     return cluster;
+  }
+
+  /**
+   * Get a handle to an *existing* k3d cluster without provisioning.
+   * Use for inspecting/tearing down clusters created earlier (or by hand).
+   * Pair with {@link Cluster.exists} to check the cluster is really there.
+   */
+  static attach(name: string): Cluster {
+    return new Cluster({
+      name,
+      image: DEFAULT_IMAGE,
+      nodes: 0,
+      executor: defaultExecutor,
+      readyTimeoutMs: 60_000,
+    });
   }
 
   /** Get a {@link K3sClient} bound to this cluster's kubeconfig. */

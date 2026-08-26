@@ -98,14 +98,7 @@ async function main(): Promise<void> {
     .description("Print cluster status")
     .option("-c, --cluster <name>", "k3d cluster name", "quilt-chaos")
     .action(async (opts: { cluster: string }) => {
-      const c = new Cluster({
-        name: opts.cluster,
-        image: "rancher/k3s:v1.30.2-k3s1",
-        nodes: 3,
-        executor: undefined as never,
-        readyTimeoutMs: 0,
-      });
-      // Use the convenience static create() with the name as a probe.
+      const c = Cluster.attach(opts.cluster);
       const exists = await probeExists(opts.cluster);
       if (!exists) {
         console.error(`Cluster ${opts.cluster} does not exist.`);
@@ -120,7 +113,7 @@ async function main(): Promise<void> {
     .description("Delete a k3d cluster")
     .option("-c, --cluster <name>", "k3d cluster name", "quilt-chaos")
     .action(async (opts: { cluster: string }) => {
-      const c = await Cluster.create({ name: opts.cluster });
+      const c = Cluster.attach(opts.cluster);
       await c.delete();
       console.log(`Deleted cluster ${c.name}.`);
     });
@@ -140,14 +133,12 @@ async function main(): Promise<void> {
 }
 
 async function maybeExisting(name: string, allowCreate: boolean): Promise<Cluster | null> {
-  // We don't have a direct "exists" check on a not-yet-constructed Cluster,
-  // so we try to construct a transient one. If that fails, optionally create.
-  try {
-    return await Cluster.create({ name });
-  } catch (err) {
-    if (!allowCreate) return null;
-    throw err;
-  }
+  // Attach first: `Cluster.create` provisions and throws when the cluster
+  // already exists, which is the common case for re-running a scenario.
+  const cluster = Cluster.attach(name);
+  if (await cluster.exists()) return cluster;
+  if (!allowCreate) return null;
+  return Cluster.create({ name });
 }
 
 async function probeExists(name: string): Promise<boolean> {

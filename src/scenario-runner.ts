@@ -32,8 +32,21 @@ export interface Scenario {
   readonly description: string;
   /** Recovery budget in ms; default is {@link DEFAULT_RECOVERY_BUDGET_MS}. */
   readonly recoveryBudgetMs?: number;
-  /** Runs the scenario. Should throw on unrecoverable failure. */
-  run(ctx: ScenarioContext): Promise<ScenarioResult>;
+  /**
+   * Runs the scenario. Should throw on unrecoverable failure.
+   *
+   * The return value is intentionally void: the runner synthesizes the
+   * {@link ScenarioResult} from `ctx.report` (assertions pushed by the
+   * scenario plus the runner's own preflight/recovery checks).
+   */
+  run(ctx: ScenarioContext): Promise<void>;
+
+  /**
+   * Optional best-effort cleanup of side effects. Called by the runner after
+   * the scenario finishes (or throws) so a failed run doesn't poison the
+   * cluster for the next scenario.
+   */
+  heal?(ctx: ScenarioContext): Promise<void>;
 }
 
 /** Per-scenario live report (mutated by the runner as it goes). */
@@ -169,9 +182,8 @@ export class ScenarioRunner {
 
   private async healBestEffort(ctx: ScenarioContext): Promise<void> {
     // Scenarios that have side effects implement `heal`; default = no-op.
-    const maybeHeal = (this.scenario as unknown as { heal?: (c: ScenarioContext) => Promise<void> }).heal;
-    if (typeof maybeHeal === "function") {
-      await maybeHeal(ctx);
+    if (typeof this.scenario.heal === "function") {
+      await this.scenario.heal(ctx);
     }
   }
 }

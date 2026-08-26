@@ -12,6 +12,8 @@ export interface PodView {
   readonly ready: string;
   readonly status: string;
   readonly restarts: number;
+  /** Scheduling node, when known (pending pods have none). */
+  readonly node?: string | undefined;
 }
 
 /** A point-in-time snapshot of cluster health. */
@@ -112,7 +114,9 @@ export function assertRecoveryTime(
   return fail("recovery-time", `recovery took ${observedMs}ms, exceeded budget ${budgetMs}ms`, {
     observedMs,
     budgetMs,
-    details: lastSnapshot ? { lastSnapshot: lastSnapshot.takenAt } : undefined,
+    // Only include `details` when we have a snapshot — exactOptionalPropertyTypes
+    // forbids assigning `undefined` to an optional property.
+    ...(lastSnapshot ? { details: { lastSnapshot: lastSnapshot.takenAt } } : {}),
   });
 }
 
