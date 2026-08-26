@@ -48,9 +48,9 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@kubernetes/client-node": "^0.21.0",
-    "commander": "^12.1.0",
-    "execa": "^8.0.1",
+    "@kubernetes/client-node": "^0.22.3",
+    "commander": "^15.0.0",
+    "execa": "^10.0.1",
     "yaml": "^2.5.0"
   },
   "peerDependencies": {
