@@ -1,5 +1,5 @@
 {
-  "name": "@quilt/k3s",
+  "name": "@superinstance/quilt-k3s",
   "version": "0.1.0",
   "description": "K3s-based chaos testing framework for Quilt. Validates self-healing, retry loops, and state-sync. Self-healing verification in under 30s.",
   "type": "module",

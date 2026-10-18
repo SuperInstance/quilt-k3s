@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * CLI entry point for `@quilt/k3s`.
+ * CLI entry point for `@superinstance/quilt-k3s`.
  *
- *   npx @quilt/k3s test                          # run all 5 scenarios
- *   npx @quilt/k3s scenario <name>               # run a single scenario
- *   npx @quilt/k3s cluster {create|status|delete}
- *   npx @quilt/k3s report <path>                 # pretty-print a JSON report
+ *   npx @superinstance/quilt-k3s test                          # run all 5 scenarios
+ *   npx @superinstance/quilt-k3s scenario <name>               # run a single scenario
+ *   npx @superinstance/quilt-k3s cluster {create|status|delete}
+ *   npx @superinstance/quilt-k3s report <path>                 # pretty-print a JSON report
  */
 
 import { Command } from "commander";
