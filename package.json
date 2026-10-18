@@ -1,5 +1,5 @@
 {
-  "name": "@quilt/k3s",
+  "name": "@superinstance/quilt-k3s",
   "version": "0.1.0",
   "description": "K3s-based chaos testing framework for Quilt. Validates self-healing, retry loops, and state-sync. Self-healing verification in under 30s.",
   "type": "module",
@@ -53,10 +53,10 @@
     "yaml": "^2.5.0"
   },
   "peerDependencies": {
-    "@quilt/core": "^0.1.0"
+    "@superinstance/quilt-core": "^0.3.3"
   },
   "peerDependenciesMeta": {
-    "@quilt/core": {
+    "@superinstance/quilt-core": {
       "optional": false
     }
   },

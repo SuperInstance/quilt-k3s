@@ -1,5 +1,5 @@
 /**
- * @quilt/k3s — K3s-based chaos testing framework for Quilt.
+ * @superinstance/quilt-k3s — K3s-based chaos testing framework for Quilt.
  *
  * Public entry point. Re-exports the four primary abstractions:
  *
@@ -32,7 +32,7 @@ export { ChaosEngine } from "./scenario-runner.js";
 export * from "./assertions.js";
 export type { AssertionResult, HealthSnapshot } from "./assertions.js";
 
-/** Version of the `@quilt/k3s` library. */
+/** Version of the `@superinstance/quilt-k3s` library. */
 export const VERSION = "0.1.0";
 
 /** Default recovery budget (ms) used when scenarios don't override. */

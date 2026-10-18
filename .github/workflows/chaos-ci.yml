@@ -62,12 +62,27 @@ jobs:
 
       - name: Spin up k3d cluster
         run: |
+          set -o pipefail
           k3d cluster create ${CLUSTER_NAME} \
             --image ${K3S_IMAGE} \
             --agents 3 \
             --wait \
             --timeout 120s
           k3d node list --cluster ${CLUSTER_NAME} -o json
+      - name: What the cluster did (diagnostics, always)
+        if: always()
+        run: |
+          echo "::group::k3d state"
+          k3d node list -o json 2>&1 || true
+          k3d cluster list 2>&1 || true
+          echo "::endgroup::"
+          echo "::group::docker"
+          docker info 2>&1 | head -20 || true
+          docker ps -a 2>&1 | head -20 || true
+          echo "::endgroup::"
+          echo "::group::disk"
+          df -h / /tmp 2>&1 || true
+          echo "::endgroup::"
 
       - name: Deploy Quilt under test
         run: |
@@ -95,6 +110,12 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
+            if (!fs.existsSync(process.env.REPORT_PATH)) {
+              console.error('NO REPORT: ' + process.env.REPORT_PATH + ' was never written, so the gauntlet did not run.');
+              console.error('Writing an empty testsuite so the run is RECORDED as not-run rather than as a converter error.');
+              fs.writeFileSync(process.env.JUNIT_PATH, '<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites>\n  <testsuite name=\"chaos\" tests=\"0\" failures=\"0\" skipped=\"1\"/>\n</testsuites>\n');
+              process.exit(0);
+            }
             const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
             const suites = report.results.map(r => {
               const tc = r.assertions.map(a => \`    <testcase classname=\\\"\${r.name}\\\" name=\\\"\${a.name}\\\">\${a.passed ? '' : \`<failure message=\\\"\${a.message.replace(/\"/g,'&quot;')}\\\"/>\`}</testcase>\`).join('\n');
@@ -126,7 +147,7 @@ jobs:
           header: chaos-report
           message: |
             ## quilt-k3s chaos report
-            ${{ steps.chaos.outputs.chaos-exit-code == '0' && '✅ All scenarios passed.' || '❌ At least one scenario failed.' }}
+            ${{ steps.chaos.outcome == 'success' && steps.chaos.outputs.chaos-exit-code == '0' && '✅ All scenarios passed.' || '❌ The chaos gauntlet did not pass (outcome: ' + (steps.chaos.outcome || 'never ran') + ').' }}
             See the `chaos-report` artifact for the full JSON / JUnit output.
 
       - name: Tear down k3d cluster

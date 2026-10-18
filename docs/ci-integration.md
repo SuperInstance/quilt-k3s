@@ -228,9 +228,9 @@ When a scenario fails in CI:
    human-readable failure causes there.
 3. **Reproduce locally:**
    ```sh
-   npx @quilt/k3s cluster create --cluster quilt-debug --nodes 3
-   npx @quilt/k3s scenario <failing-scenario> --cluster quilt-debug
-   npx @quilt/k3s cluster delete --cluster quilt-debug
+   npx @superinstance/quilt-k3s cluster create --cluster quilt-debug --nodes 3
+   npx @superinstance/quilt-k3s scenario <failing-scenario> --cluster quilt-debug
+   npx @superinstance/quilt-k3s cluster delete --cluster quilt-debug
    ```
 4. **Check the Quilt agent logs:** `kubectl -n quilt logs -l app.kubernetes.io/name=quilt-agent`.
 5. **Check the cell logs:** `kubectl -n quilt logs quilt-cell-0`.
