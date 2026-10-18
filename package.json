@@ -53,10 +53,10 @@
     "yaml": "^2.5.0"
   },
   "peerDependencies": {
-    "@quilt/core": "^0.1.0"
+    "@superinstance/quilt-core": "^0.3.3"
   },
   "peerDependenciesMeta": {
-    "@quilt/core": {
+    "@superinstance/quilt-core": {
       "optional": false
     }
   },

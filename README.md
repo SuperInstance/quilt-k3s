@@ -102,7 +102,7 @@ For each scenario, the test:
 **1. Run all 5 scenarios in 90 seconds:**
 
 ```bash
-npx @quilt/k3s test
+npx @superinstance/quilt-k3s test
 # Spins up k3d, deploys Quilt, runs all 5 scenarios
 # Reports: ✓ 5/5 passed in 87.3s
 ```
@@ -110,7 +110,7 @@ npx @quilt/k3s test
 **2. Run a single scenario:**
 
 ```bash
-npx @quilt/k3s scenario node-failure
+npx @superinstance/quilt-k3s scenario node-failure
 # ✓ Node failure: cordoned + drained node-1
 # ✓ Pods rescheduled to node-2, node-3
 # ✓ Recovery time: 18.2s (threshold 30s) ✓
@@ -121,14 +121,14 @@ npx @quilt/k3s scenario node-failure
 ```yaml
 # .github/workflows/chaos.yml
 - name: Chaos test
-  run: npx @quilt/k3s test
+  run: npx @superinstance/quilt-k3s test
   # Fails the build if any scenario exceeds its threshold
 ```
 
 **4. Inject failures programmatically:**
 
 ```ts
-import { Cluster, K3sClient, ScenarioRunner } from '@quilt/k3s';
+import { Cluster, K3sClient, ScenarioRunner } from '@superinstance/quilt-k3s';
 
 const cluster = await Cluster.create({ nodes: 3 });
 const client = new K3sClient({ kubeconfig: cluster.kubeconfigPath() });
@@ -154,7 +154,7 @@ const report = await runner.assert({ maxRecoveryMs: 30_000 });
 
 ```bash
 # Install
-npm install -g @quilt/k3s
+npm install -g @superinstance/quilt-k3s
 
 # Run all scenarios
 quilt-k3s test

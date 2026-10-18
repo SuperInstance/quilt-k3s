@@ -31,7 +31,7 @@ A good report contains:
 
 1. A clear description of the vulnerability and its impact.
 2. A reproducer (commit SHA, scenario name, command line, manifest, etc.).
-3. The affected version(s) of `@quilt/k3s`.
+3. The affected version(s) of `@superinstance/quilt-k3s`.
 4. Your assessment of severity (CVSS, if you have it).
 5. Whether you intend to disclose publicly and, if so, on what timeline.
 
@@ -44,7 +44,7 @@ We follow [coordinated disclosure][cd] — please give us a reasonable window
 
 In scope:
 
-- The `@quilt/k3s` library (`src/`, `scenarios/`, `manifests/`).
+- The `@superinstance/quilt-k3s` library (`src/`, `scenarios/`, `manifests/`).
 - The GitHub Actions workflow at `.github/workflows/chaos-ci.yml` (e.g.
   command injection in scenario arguments, arbitrary k3d node execution).
 - The CLI (`src/cli.ts`).
